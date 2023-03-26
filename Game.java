@@ -15,29 +15,33 @@ public class Game extends Canvas implements KeyListener {
 
     //Game settings
     final static int INIT_ASTEROIDS = 15;
-    final static int ASTEROID_SPEED = 3;
-    final static int MISSILE_SPEED = 1;
-    final static int SHIP_SPEED = 3;
-    final static int ROTATION_SPEED = 8;
-    final static int MAX_LIVES = 3;
-    final static int FREE_LIFE_THRESHOLD = 3;
+    final static int ASTEROID_SPEED = 1;
+    final static int MISSILE_SPEED = 3;
+    final static double SHIP_SPEED = 0.4;
+    final static double ROTATION_SPEED = 5;
     final static int SCREEN_WIDTH = 1000;
     final static int SCREEN_HEIGHT = 750;
-    //APCS - Once you have created your Ship class, switch theShip from a Polygon to a Ship variable
+    //AP CS - Once you have created your Ship class, switch theShip from a Polygon to a Ship variable
     private final Ship ship;
-    private final int collisionCt = 0;
-    private final int newCollisionWith = -1;
     private final ArrayList<Asteroid> asteroids = new ArrayList<Asteroid>();
+    private final Color[] titleCardColors = {Color.RED, Color.ORANGE, Color.YELLOW, Color.GREEN, Color.BLUE, Color.MAGENTA};
+    private final Color[] infoCardColors = {Color.RED, Color.ORANGE, Color.YELLOW, Color.GREEN, Color.BLUE, Color.MAGENTA};
     protected boolean on = true;
     //private Ship theShip;
     //APCS - Once you have created your Asteroid class, uncomment this section
     //private ArrayList<Asteroid> asteroids = new ArrayList<Asteroid>();
     protected int width, height;
     protected Image buffer;
+    private int score = 0;
+    private int lives = 3;
+    private int infoCardColor = 0;
     // int for title card height, set to bottom of screen
     private Point titleCardLocation = new Point((double) Game.SCREEN_WIDTH / 2, (double) Game.SCREEN_HEIGHT / 2);
     private int titleCardDirection = 75;
-    private boolean titleCard = true;
+    private int titleCardColor = 0;
+    private Point infoCardLocation = new Point((double) Game.SCREEN_WIDTH / 2, (double) Game.SCREEN_HEIGHT / 2);
+    private int infoCardDirection = 75 + 180;
+    private boolean titleScreen = true;
     private BufferStrategy strategy;
     // variables to keep track of what keys are pressed
     private boolean leftPressed = false;
@@ -91,10 +95,56 @@ public class Game extends Canvas implements KeyListener {
 
     public static void main(String[] args) {
         new Game();
+    }
 
+
+    public void drawUI(Graphics brush) {
+        // draw the score
+        brush.setColor(Color.LIGHT_GRAY);
+        brush.setFont(new Font("Arial", Font.BOLD, 30));
+        String titleText = "Score: " + score;
+        brush.drawString(titleText, 10, 50);
+
+        Point[] shipShape = {
+                new Point(10, 10),
+                new Point(0, 25),
+                new Point(0, 35),
+                new Point(20, 35),
+                new Point(20, 25)
+        };
+
+        // draw the lives
+        for (int i = 0; i < lives; i++) {
+            // draw the ships on the top left corner of the screen, and increment the x position by 30 each time
+            brush.setColor(Color.WHITE);
+            Polygon outline = new Polygon(shipShape, new Point(25 + (i * 30), 80), 0);
+            outline.setColor(Color.WHITE);
+            outline.setFill(false);
+            outline.paint(brush);
+        }
     }
 
     public void paint(Graphics brush) {
+
+        // game over screen
+        if (lives <= 0) {
+            brush.setColor(Color.BLACK);
+            brush.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+            brush.setColor(Color.WHITE);
+            brush.setFont(new Font("Arial", Font.BOLD, 30));
+            String titleText = "Game Over";
+            brush.drawString(titleText, 10, 50);
+            brush.setFont(new Font("Arial", Font.BOLD, 20));
+            String titleText2 = "Score: " + score;
+            brush.drawString(titleText2, 10, 100);
+            // escape to quit
+            brush.setFont(new Font("Arial", Font.BOLD, 20));
+            String titleText3 = "Press escape to quit";
+            brush.drawString(titleText3, 10, 150);
+
+            return;
+        }
+
 
         // paint background to black
         brush.setColor(Color.BLACK);
@@ -115,11 +165,13 @@ public class Game extends Canvas implements KeyListener {
             asteroid.paint(brush);
 
             // check for collisions between the ship and the asteroids
-            if (asteroid.collides(ship) && !titleCard) {
+            if (asteroid.collides(ship) && !titleScreen) {
                 // remove the asteroid
                 asteroids.remove(asteroid);
                 // reset the ship
                 ship.reset();
+                // decrement the lives
+                lives--;
             }
 
             // check for collisions between the missiles and the asteroids
@@ -130,6 +182,12 @@ public class Game extends Canvas implements KeyListener {
                     // remove the missile and the asteroid
                     ship.removeMissile(ship.getMissiles().get(j));
                     asteroids.remove(asteroid);
+                    // add a new asteroid
+                    asteroids.add(generateAsteroid());
+                    // increment the score, based on the size of the asteroid
+                    // the smaller the asteroid, the more points it's worth
+                    double area = asteroid.findArea();
+                    score += (int) (500 / area);
                 } else {
                     if (ship.getMissiles().get(j).isOutOfBounds()) {
                         ship.removeMissile(ship.getMissiles().get(j));
@@ -146,15 +204,15 @@ public class Game extends Canvas implements KeyListener {
 
         // title card!
 
-        if (titleCard) {
+        if (titleScreen) {
             // add grey rectangle to cover screen
-            brush.setColor(new Color(0, 0, 0, 230));
+            brush.setColor(new Color(0, 0, 0, 150));
             brush.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 
             // draw title card, and bounce it around the screen like a dvd screen saver
 
             // draw title card
-            brush.setColor(Color.WHITE);
+            brush.setColor(titleCardColors[titleCardColor]);
             brush.setFont(new Font("Arial", Font.BOLD, 50));
             String titleText = "ASTEROIDS";
             FontMetrics fontMetrics = brush.getFontMetrics();
@@ -168,18 +226,68 @@ public class Game extends Canvas implements KeyListener {
             if (newPos.x > Game.SCREEN_WIDTH - textWidth / 2) {
                 newPos = new Point(Game.SCREEN_WIDTH - textWidth / 2 - 1, newPos.y);
                 titleCardDirection = -titleCardDirection;
+                // change color
+                titleCardColor++;
+                if (titleCardColor >= titleCardColors.length) {
+                    titleCardColor = 0;
+                }
             } else if (newPos.x < textWidth / 2) {
                 newPos = new Point(textWidth / 2 + 1, newPos.y);
                 titleCardDirection = -titleCardDirection;
+                titleCardColor++;
+                if (titleCardColor >= titleCardColors.length) {
+                    titleCardColor = 0;
+                }
             } else if (newPos.y > Game.SCREEN_HEIGHT - textHeight / 2) {
                 newPos = new Point(newPos.x, Game.SCREEN_HEIGHT - textHeight / 2 - 1);
                 titleCardDirection = 180 - titleCardDirection;
+                titleCardColor++;
+                if (titleCardColor >= titleCardColors.length) {
+                    titleCardColor = 0;
+                }
             } else if (newPos.y < textHeight / 2) {
                 newPos = new Point(newPos.x, textHeight / 2 + 1);
                 titleCardDirection = 180 - titleCardDirection;
+                titleCardColor++;
+                if (titleCardColor >= titleCardColors.length) {
+                    titleCardColor = 0;
+                }
             }
             titleCardLocation = newPos;
 
+            // do all the above again for the instructions
+            brush.setColor(infoCardColors[infoCardColor]);
+            brush.setFont(new Font("Arial", Font.BOLD, 20));
+            String instructionsText = "Press any key to start";
+            fontMetrics = brush.getFontMetrics();
+            textWidth = fontMetrics.stringWidth(instructionsText);
+            textHeight = fontMetrics.getHeight();
+            brush.drawString(instructionsText, (int) (infoCardLocation.x - textWidth / 2), (int) (infoCardLocation.y + textHeight / 2));
+
+            // move the instructions
+            newPos = new Point(infoCardLocation.x + (5 * Math.sin(Math.toRadians(infoCardDirection))),
+                    infoCardLocation.y - (5 * Math.cos(Math.toRadians(infoCardDirection))));
+            if (newPos.x > Game.SCREEN_WIDTH - textWidth / 2) {
+                newPos = new Point(Game.SCREEN_WIDTH - textWidth / 2 - 1, newPos.y);
+                infoCardDirection = -infoCardDirection;
+                infoCardColor++;
+            } else if (newPos.x < textWidth / 2) {
+                newPos = new Point(textWidth / 2 + 1, newPos.y);
+                infoCardDirection = -infoCardDirection;
+                infoCardColor++;
+            } else if (newPos.y > Game.SCREEN_HEIGHT - textHeight / 2) {
+                newPos = new Point(newPos.x, Game.SCREEN_HEIGHT - textHeight / 2 - 1);
+                infoCardDirection = 180 - infoCardDirection;
+                infoCardColor++;
+            } else if (newPos.y < textHeight / 2) {
+                newPos = new Point(newPos.x, textHeight / 2 + 1);
+                infoCardDirection = 180 - infoCardDirection;
+                infoCardColor++;
+            }
+            infoCardLocation = newPos;
+
+        } else {
+            drawUI(brush);
         }
 
 
@@ -199,7 +307,6 @@ public class Game extends Canvas implements KeyListener {
         if (spacePressed) {
             ship.shoot();
         }
-
     }
 
     public void render() {
@@ -228,8 +335,8 @@ public class Game extends Canvas implements KeyListener {
         if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
             System.exit(0);
         }
-        if (titleCard) {
-            titleCard = false;
+        if (titleScreen) {
+            titleScreen = false;
             return;
         }
         if (e.getKeyCode() == KeyEvent.VK_LEFT) {

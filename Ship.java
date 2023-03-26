@@ -4,8 +4,16 @@ import java.util.ArrayList;
 public class Ship extends Polygon {
     private final ArrayList<Missile> missiles = new ArrayList<Missile>();
     private final Point pull = new Point(0, 0);
-    private int boosterAnimation = 0;
-    private boolean boosterOn = false;
+
+    // forwards booster and backwards booster
+    private int fbAnimationDuration = 0;
+    private boolean fbOn = false;
+    private int bBAnimationDuration = 0;
+    private boolean bBOn = false;
+
+    private boolean shootCooldown = false;
+    private int shootCooldownDuration = 0;
+
 
     public Ship() {
         // use Game.SCREEN_WIDTH and Game.SCREEN_HEIGHT to set the initial position of the ship
@@ -20,7 +28,6 @@ public class Ship extends Polygon {
                 , new Point((double) Game.SCREEN_WIDTH / 2, (double) Game.SCREEN_HEIGHT / 2), 0);
         // change color to black
         setColor(Color.WHITE);
-        setFill(false);
     }
 
     public void reset() {
@@ -35,6 +42,10 @@ public class Ship extends Polygon {
     }
 
     public void shoot() {
+        if (shootCooldown) {
+            return;
+        }
+
 //        if (missiles.size() >= 5) {
 //            return;
 //        }
@@ -45,6 +56,14 @@ public class Ship extends Polygon {
                 new Point(5, 5),
                 new Point(5, 0)
         }, new Point(position.x, position.y), rotation));
+
+        shootCooldown = true;
+        shootCooldownDuration = 20;
+
+        // recoil
+        // accelerate without triggering the booster
+        pull.x -= (1 * Math.cos(Math.toRadians(rotation + 270)));
+        pull.y -= (1 * Math.sin(Math.toRadians(rotation + 270)));
     }
 
     public ArrayList<Missile> getMissiles() {
@@ -56,7 +75,16 @@ public class Ship extends Polygon {
     }
 
     public void paint(Graphics brush) {
-        if (boosterOn) {
+        // shoot cool down
+        if (shootCooldown) {
+            shootCooldownDuration--;
+            if (shootCooldownDuration == 0) {
+                shootCooldown = false;
+            }
+        }
+
+
+        if (fbOn) {
             brush.setColor(Color.RED);
             // calculate the position of the booster based on the ship's position and orientation
             double boosterX = position.x - (Math.sin(Math.toRadians(rotation)) * 14);
@@ -69,54 +97,67 @@ public class Ship extends Polygon {
             };
             // create new polygon for the booster
             Polygon boosterPoly = new Polygon(booster, new Point(boosterX, boosterY), rotation - 90);
-            boosterPoly.setColor(Color.RED);
             // draw the booster
             boosterPoly.paint(brush);
 
-            boosterAnimation--;
-            if (boosterAnimation == 0) {
-                boosterOn = false;
+            fbAnimationDuration--;
+            if (fbAnimationDuration == 0) {
+                fbOn = false;
             }
         }
 
+        if (bBOn) {
+            // calculate the position of the booster based on the ship's position and orientation
+            double boosterX = position.x - (Math.sin(Math.toRadians(rotation)) * -10);
+            double boosterY = position.y + (Math.cos(Math.toRadians(rotation)) * -10);
+            // same as above but with the opposite rotation, and a little bit smaller
+            Point[] booster = {
+                    new Point(boosterX, boosterY),
+                    new Point(boosterX + 10, boosterY - 10),
+                    new Point(boosterX + 5, boosterY),
+                    new Point(boosterX + 10, boosterY + 10)
+            };
+            // create new polygon for the booster
+            Polygon boosterPoly = new Polygon(booster, new Point(boosterX, boosterY), rotation - 90);
+            // draw the booster
+            boosterPoly.paint(brush);
+
+            bBAnimationDuration--;
+            if (bBAnimationDuration == 0) {
+                bBOn = false;
+            }
+        }
+
+
+        for (Missile missile : missiles) missile.paint(brush);
         super.paint(brush);
-
-        for (Missile missile : missiles) {
-            missile.paint(brush);
-        }
-    }
-
-    private int[] convertToYArray(Point[] points) {
-        // return only the y values of the points in the array
-        int[] yArray = new int[points.length];
-        for (int i = 0; i < points.length; i++) {
-            yArray[i] = (int) points[i].y;
-        }
-        return yArray;
-    }
-
-    private int[] convertToXArray(Point[] points) {
-        // return only the x values of the points in the array
-        int[] xArray = new int[points.length];
-        for (int i = 0; i < points.length; i++) {
-            xArray[i] = (int) points[i].x;
-        }
-        return xArray;
     }
 
 
     public void accelerate(double acceleration) {
+        // max speed is 10
+        if (Math.abs(pull.x) > 10 || Math.abs(pull.y) > 10) {
+            return;
+        }
+
+
         pull.x += (acceleration * Math.cos(Math.toRadians(rotation + 270)));
         pull.y += (acceleration * Math.sin(Math.toRadians(rotation + 270)));
 
-        boosterOn = true;
-        boosterAnimation = 10; // 10 frames (paint decrements this)
+
+        if (acceleration > 0) {
+            fbOn = true;
+            fbAnimationDuration = 20;
+        } else if (acceleration < 0) {
+            bBOn = true;
+            bBAnimationDuration = 20;
+        }
     }
 
     // what should I name the method that is called every frame to apply the acceleration?
     public void move() {
-        pull.x *= 0.99;
-        pull.y *= 0.99;
+        pull.x *= 0.999;
+        pull.y *= 0.999;
 
         Point newPos = new Point(position.x + pull.x, position.y + pull.y);
 

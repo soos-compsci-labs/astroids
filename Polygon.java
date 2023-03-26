@@ -15,9 +15,9 @@ NOTE: You don't need to worry about the "magic math" details.
 import java.awt.*;
 
 public class Polygon {
+    private final Point[] shape;   // An array of points.
     protected Point position;   // The offset mentioned above.
     protected double rotation; // Zero degrees is due east.
-    private final Point[] shape;   // An array of points.
     private Color myColor;   //The color that the polygon will be drawn in
     private boolean fill;    //Whether the polygon is painted filled or hollow.
     private boolean wrap;    //An indicator of whether the polygon wraps the screen (reappears on the other side)
@@ -118,7 +118,7 @@ public class Polygon {
     }
 
 
-    public void rotate(int degrees) {
+    public void rotate(double degrees) {
         rotation = (rotation + degrees) % 360;
     }
 
@@ -202,7 +202,7 @@ public class Polygon {
   */
 
     // "findArea" implements some more magic math.
-    private double findArea() {
+    public double findArea() {
         double sum = 0;
         for (int i = 0, j = 1; i < shape.length; i++, j = (j + 1) % shape.length) {
             sum += shape[i].x * shape[j].y - shape[j].x * shape[i].y;
